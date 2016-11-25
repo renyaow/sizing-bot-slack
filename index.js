@@ -3,6 +3,8 @@ var config = require("config");
 
 var token = config.get('token');
 
+var allowed = [1, 2, 3, 5, 8, 13, 21, 40]
+
 var controller = Botkit.slackbot({
     debug: true
 });
@@ -28,13 +30,25 @@ function resetSizing() {
   }
 }
 
+function findClosestNumber(num, allowed) {
+  for (var i in allowed) {
+    if (allowed[i] >= num)
+      return allowed[i]
+  }
+  return allowed[allowed.length-1]
+}
+
 function getAverage(sizes) {
   var sum = 0;
   for (var i in sizes) {
     sum += sizes[i]
   }
   var average = sum / Object.keys(sizes).length
-  return average
+  return findClosestNumber(average)
+}
+
+function sizeCheck(size) {
+  return allowed.indexOf(size) != -1
 }
 
 controller.hears(['^size$'], 'ambient,direct_mention,direct_message', function(bot,message) {
@@ -62,10 +76,7 @@ controller.hears(['^size$'], 'ambient,direct_mention,direct_message', function(b
       askTicket(response, convo);
       convo.next();
     })
-
-
   })
-
 })
 
 controller.hears(['size for ([0-9]+) people'], 'ambient,direct_mention,direct_message', function(bot, message){
@@ -73,7 +84,7 @@ controller.hears(['size for ([0-9]+) people'], 'ambient,direct_mention,direct_me
   bot.reply(message, "Ready to size tickets for " + sizing.numberOfUsers + ' people');
 })
 
-controller.hears(['size (#.*)'], 'ambient,direct_mention,message_received,direct_message', function(bot, message) {
+controller.hears(['(#.*)'], 'ambient,direct_mention,message_received,direct_message', function(bot, message) {
   resetSizing();
   sizing.ticketNum = message.match[1];
   sizing.currentChannel = message.channel;
@@ -82,6 +93,10 @@ controller.hears(['size (#.*)'], 'ambient,direct_mention,message_received,direct
 
 controller.hears(['([0-9]+)'],'ambient,direct_message,message_received,direct_mention',function(bot, message) {
   var size = parseInt(message.match[1]);
+  if (!sizeCheck(size)) {
+    bot.reply(message, "Only these numbers are allowed: " + allowed.toString());
+    return;
+  }
   bot.reply(message, "You have given ticket "+ sizing.ticketNum + " a size of " + size);
   bot.api.users.info({user: message.user}, function(err, response) {
     sizing.sizes[response.user.name] = size;
@@ -99,7 +114,7 @@ controller.hears(['([0-9]+)'],'ambient,direct_message,message_received,direct_me
         text += name + ': ' + sizing.sizes[name] + '\n';
       }
       bot.say( {
-        text: text + 'Average: ' + average,
+        text: text + 'Size: ' + average,
         channel: sizing.currentChannel
       })
       resetSizing();
@@ -107,5 +122,3 @@ controller.hears(['([0-9]+)'],'ambient,direct_message,message_received,direct_me
   })
 
 })
-
-controller.hears(['average'], '')
