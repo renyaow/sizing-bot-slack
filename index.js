@@ -44,7 +44,7 @@ function getAverage(sizes) {
     sum += sizes[i]
   }
   var average = sum / Object.keys(sizes).length
-  return findClosestNumber(average)
+  return findClosestNumber(average, allowed)
 }
 
 function sizeCheck(size) {
